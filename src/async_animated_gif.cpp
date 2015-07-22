@@ -104,7 +104,7 @@ AsyncAnimatedGif::Push(unsigned char *data_buf, int x, int y, int w, int h)
 
     uv_work_t * req = new uv_work_t;
 
-    push_request *push_req = (push_request *)malloc(sizeof(*push_req));
+    push_request *push_req = (push_request *)calloc(1, sizeof(*push_req));
     if (!push_req)
         throw "malloc in AsyncAnimatedGif::Push failed.";
 
@@ -363,7 +363,7 @@ AsyncAnimatedGif::EIO_Encode(uv_work_t *req)
             }
             LOKI_ON_BLOCK_EXIT(fclose, in);
             int size = file_size(fragment_path);
-            unsigned char *data = (unsigned char *)malloc(sizeof(*data)*size);
+            unsigned char *data = (unsigned char *)calloc(size, sizeof(*data));
             LOKI_ON_BLOCK_EXIT(free, data);
             int read = fread(data, sizeof *data, size, in);
             if (read != size) {
@@ -436,7 +436,7 @@ AsyncAnimatedGif::Encode(const FunctionCallbackInfo<v8::Value> &args)
     
     uv_work_t *req = new uv_work_t;
 
-    async_encode_request *enc_req = (async_encode_request *)malloc(sizeof(*enc_req));
+    async_encode_request *enc_req = (async_encode_request *)calloc(1, sizeof(*enc_req));
 
 
     if (!enc_req)

@@ -292,7 +292,7 @@ DynamicGifStack::EIO_GifEncode(uv_work_t *req)
         encoder.encode();
         free(data);
         enc_req->gif_len = encoder.get_gif_len();
-        enc_req->gif = (char *)malloc(sizeof(*enc_req->gif)*enc_req->gif_len);
+        enc_req->gif = (char *)calloc(enc_req->gif_len, sizeof(*enc_req->gif));
         if (!enc_req->gif) {
             enc_req->error = strdup("malloc in DynamicGifStack::EIO_GifEncode failed.");
             return;
@@ -364,7 +364,7 @@ DynamicGifStack::GifEncodeAsync(const FunctionCallbackInfo<Value> &args)
 
     DynamicGifStack *gif = ObjectWrap::Unwrap<DynamicGifStack>(args.This());
 
-    encode_request *enc_req = (encode_request *)malloc(sizeof(*enc_req));
+    encode_request *enc_req = (encode_request *)calloc(1, sizeof(*enc_req));
     if (!enc_req)
         VException("malloc in DynamicGifStack::GifEncodeAsync failed.");
 
