@@ -24,7 +24,7 @@ struct Color {
     bool color_present; // true if this is really a color
     unsigned char r, g, b;
     Color(unsigned char rr, unsigned char gg, unsigned char bb, bool ccolor_present=true) :
-        r(rr), g(gg), b(bb), color_present(ccolor_present) {}
+         color_present(ccolor_present), r(rr), g(gg), b(bb) {}
     Color() : color_present(false) {}
 };
 
