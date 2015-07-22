@@ -190,6 +190,17 @@ DynamicGifStack::New(const FunctionCallbackInfo<Value> &args)
             VException("First argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
     }
 
+    DynamicGifStack *gif_stack = new DynamicGifStack(buf_type);
+    gif_stack->Wrap(args.This());
+    args.GetReturnValue().Set(args.This());
+}
+
+void
+DynamicGifStack::Push(const FunctionCallbackInfo<Value> &args)
+{
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+ 
     if (!Buffer::HasInstance(args[0]))
         VException("First argument must be Buffer.");
     if (!args[1]->IsInt32())
