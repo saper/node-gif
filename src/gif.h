@@ -2,7 +2,8 @@
 #define NODE_GIF_H
 
 #include <node.h>
-#include <node_buffer.h>
+#include <node_object_wrap.h>
+#include <uv.h>
 
 #include "common.h"
 
@@ -15,15 +16,15 @@ class Gif : public node::ObjectWrap {
     static void EIO_GifEncodeAfter(uv_work_t *req, int status);
 
 public:
-    static void Initialize(v8::Handle<v8::Object> target);
     Gif(int wwidth, int hheight, buffer_type bbuf_type);
-    v8::Handle<v8::Value> GifEncodeSync();
+    static void Initialize(v8::Isolate *isolate, v8::Handle<v8::Object> target);
+    v8::Local<v8::Value> GifEncodeSync();
     void SetTransparencyColor(unsigned char r, unsigned char g, unsigned char b);
 
-    static v8::Handle<v8::Value> New(const v8::Arguments &args);
-    static v8::Handle<v8::Value> GifEncodeSync(const v8::Arguments &args);
-    static v8::Handle<v8::Value> GifEncodeAsync(const v8::Arguments &args);
-    static v8::Handle<v8::Value> SetTransparencyColor(const v8::Arguments &args);
+    static void New(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void GifEncodeSync(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void GifEncodeAsync(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void SetTransparencyColor(const v8::FunctionCallbackInfo<v8::Value> &args);
 };
 
 #endif
