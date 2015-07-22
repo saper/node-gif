@@ -5,9 +5,6 @@
 #include <node_buffer.h>
 #include <v8.h>
 
-char *BufferData(node::Buffer *b);
-size_t BufferLength(node::Buffer *b);
-
 char *BufferData(v8::Local<v8::Object> buf_obj);
 size_t BufferLength(v8::Local<v8::Object> buf_obj);
 
