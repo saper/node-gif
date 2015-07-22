@@ -2,7 +2,7 @@
 #define ANIMATED_GIF_H
 
 #include <node.h>
-#include <node_buffer.h>
+#include <node_object_wrap.h>
 
 #include "gif_encoder.h"
 #include "common.h"
@@ -25,13 +25,13 @@ public:
     v8::Handle<v8::Value> Push(unsigned char *data_buf, int x, int y, int w, int h);
     void EndPush();
 
-    static v8::Handle<v8::Value> New(const v8::Arguments &args);
-    static v8::Handle<v8::Value> Push(const v8::Arguments &args);
-    static v8::Handle<v8::Value> EndPush(const v8::Arguments &args);
-    static v8::Handle<v8::Value> End(const v8::Arguments &args);
-    static v8::Handle<v8::Value> GetGif(const v8::Arguments &args);
-    static v8::Handle<v8::Value> SetOutputFile(const v8::Arguments &args);
-    static v8::Handle<v8::Value> SetOutputCallback(const v8::Arguments &args);
+    static v8::Handle<v8::Value> New(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static v8::Handle<v8::Value> Push(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static v8::Handle<v8::Value> EndPush(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static v8::Handle<v8::Value> End(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static v8::Handle<v8::Value> GetGif(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static v8::Handle<v8::Value> SetOutputFile(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static v8::Handle<v8::Value> SetOutputCallback(const v8::FunctionCallbackInfo<v8::Value> &args);
 };
 
 #endif

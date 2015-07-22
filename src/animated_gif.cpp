@@ -87,7 +87,7 @@ AnimatedGif::EndPush()
 }
 
 Handle<Value>
-AnimatedGif::New(const Arguments &args)
+AnimatedGif::New(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
@@ -136,7 +136,7 @@ AnimatedGif::New(const Arguments &args)
 }
 
 Handle<Value>
-AnimatedGif::Push(const Arguments &args)
+AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
@@ -187,7 +187,7 @@ AnimatedGif::Push(const Arguments &args)
 }
 
 Handle<Value>
-AnimatedGif::EndPush(const Arguments &args)
+AnimatedGif::EndPush(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
@@ -203,7 +203,7 @@ AnimatedGif::EndPush(const Arguments &args)
 }
 
 Handle<Value>
-AnimatedGif::GetGif(const Arguments &args)
+AnimatedGif::GetGif(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
@@ -216,7 +216,7 @@ AnimatedGif::GetGif(const Arguments &args)
 }
 
 Handle<Value>
-AnimatedGif::End(const Arguments &args)
+AnimatedGif::End(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
@@ -227,7 +227,7 @@ AnimatedGif::End(const Arguments &args)
 }
 
 Handle<Value>
-AnimatedGif::SetOutputFile(const Arguments &args)
+AnimatedGif::SetOutputFile(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
@@ -264,7 +264,7 @@ stream_writer(GifFileType *gif_file, const GifByteType *data, int size)
 }
 
 Handle<Value>
-AnimatedGif::SetOutputCallback(const Arguments &args)
+AnimatedGif::SetOutputCallback(const FunctionCallbackInfo<Value>& args)
 {
     HandleScope scope;
 
