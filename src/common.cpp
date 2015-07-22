@@ -9,14 +9,14 @@ ErrorException(const char *msg)
 {
     Isolate* isolate = Isolate::GetCurrent();
     HandleScope scope(isolate);
-    return Exception::Error(String::New(msg));
+    return Exception::Error(String::NewFromUtf8(isolate, msg));
 }
 
 void
 VException(const char *msg) {
     Isolate* isolate = Isolate::GetCurrent();
     HandleScope scope(isolate);
-    return isolate->ThrowException(ErrorException(msg));
+    isolate->ThrowException(ErrorException(msg));
 }
 
 bool str_eq(const char *s1, const char *s2)
