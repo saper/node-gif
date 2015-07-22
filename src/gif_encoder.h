@@ -31,7 +31,7 @@ public:
 
     void encode();
     const unsigned char *get_gif() const;
-    const int get_gif_len() const;
+    int get_gif_len() const;
 };
 
 class AnimatedGifEncoder {
@@ -66,7 +66,7 @@ public:
     void set_output_func(OutputFunc func, void* user_data);
 
     const unsigned char *get_gif() const;
-    const int get_gif_len() const;
+    int get_gif_len() const;
 };
 
 class RGBator {
