@@ -1,7 +1,8 @@
 #include "common.h"
 #include "gif_encoder.h"
 #include "dynamic_gif_stack.h"
-#include "buffer_compat.h"
+
+#include <node_buffer.h>
 
 using namespace v8;
 using namespace node;
@@ -71,17 +72,17 @@ DynamicGifStack::construct_gif_data(unsigned char *data, Point &top)
 }
 
 void
-DynamicGifStack::Initialize(Handle<Object> target)
+DynamicGifStack::Initialize(Isolate* isolate, Handle<Object> target)
 {
-    HandleScope scope;
+    HandleScope scope(isolate);
 
-    Local<FunctionTemplate> t = FunctionTemplate::New(New);
+    Local<FunctionTemplate> t = FunctionTemplate::New(isolate, New);
     t->InstanceTemplate()->SetInternalFieldCount(1);
     NODE_SET_PROTOTYPE_METHOD(t, "push", Push);
     NODE_SET_PROTOTYPE_METHOD(t, "encode", GifEncodeAsync);
     NODE_SET_PROTOTYPE_METHOD(t, "encodeSync", GifEncodeSync);
     NODE_SET_PROTOTYPE_METHOD(t, "dimensions", Dimensions);
-    target->Set(String::NewSymbol("DynamicGifStack"), t->GetFunction());
+    target->Set(String::NewFromUtf8(isolate, "DynamicGifStack"), t->GetFunction());
 }
 
 DynamicGifStack::DynamicGifStack(buffer_type bbuf_type) :
@@ -93,23 +94,23 @@ DynamicGifStack::~DynamicGifStack()
         delete *it;
 }
 
-Handle<Value>
+void
 DynamicGifStack::Push(unsigned char *buf_data, size_t buf_len, int x, int y, int w, int h)
 {
     try {
         GifUpdate *gif_update = new GifUpdate(buf_data, buf_len, x, y, w, h);
         gif_stack.push_back(gif_update);
-        return Undefined();
     }
     catch (const char *e) {
-        return VException(e);
+        VException(e);
     }
 }
 
-Handle<Value>
+v8::Local<v8::Value>
 DynamicGifStack::GifEncodeSync()
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    EscapableHandleScope scope(isolate);
 
     std::pair<Point, Point> optimal = optimal_dimension();
     Point top = optimal.first, bot = optimal.second;
@@ -119,7 +120,7 @@ DynamicGifStack::GifEncodeSync()
     height = bot.y - top.y;
 
     unsigned char *data = (unsigned char*)malloc(sizeof(*data)*width*height*3);
-    if (!data) return VException("malloc failed in DynamicGifStack::GifEncode");
+    if (!data) VException("malloc failed in DynamicGifStack::GifEncode");
 
     unsigned char *datap = data;
     for (int i = 0; i < width*height*3; i+=3) {
@@ -136,44 +137,45 @@ DynamicGifStack::GifEncodeSync()
         encoder.encode();
         free(data);
         int gif_len = encoder.get_gif_len();
-        Buffer *retbuf = Buffer::New(gif_len);
-        memcpy(BufferData(retbuf), encoder.get_gif(), gif_len);
-        return scope.Close(retbuf->handle_);
+	return scope.Escape(node::Buffer::New(isolate,
+		(const char *)encoder.get_gif(), gif_len));
     }
     catch (const char *err) {
-        return VException(err);
+        VException(err);
     }
 }
 
-Handle<Value>
+v8::Local<v8::Value>
 DynamicGifStack::Dimensions()
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    EscapableHandleScope scope(isolate);
 
-    Local<Object> dim = Object::New();
-    dim->Set(String::NewSymbol("x"), Integer::New(offset.x));
-    dim->Set(String::NewSymbol("y"), Integer::New(offset.y));
-    dim->Set(String::NewSymbol("width"), Integer::New(width));
-    dim->Set(String::NewSymbol("height"), Integer::New(height));
+    Local<Object> dim = Object::New(isolate);
+    dim->Set(String::NewFromUtf8(isolate, "x"), Integer::New(isolate, offset.x));
+    dim->Set(String::NewFromUtf8(isolate, "y"), Integer::New(isolate, offset.y));
+    dim->Set(String::NewFromUtf8(isolate, "width"), Integer::New(isolate, width));
+    dim->Set(String::NewFromUtf8(isolate, "height"), Integer::New(isolate, height));
 
-    return scope.Close(dim);
+    return scope.Escape(dim);
 }
 
-Handle<Value>
-DynamicGifStack::New(const Arguments &args)
+void
+DynamicGifStack::New(const FunctionCallbackInfo<Value> &args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     buffer_type buf_type = BUF_RGB;
     if (args.Length() == 1) {
         if (!args[0]->IsString())
-            return VException("First argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("First argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
 
-        String::AsciiValue bts(args[0]->ToString());
+        String::Utf8Value bts(args[0]->ToString());
         if (!(str_eq(*bts, "rgb") || str_eq(*bts, "bgr") ||
             str_eq(*bts, "rgba") || str_eq(*bts, "bgra")))
         {
-            return VException("First argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("First argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
         }
 
         if (str_eq(*bts, "rgb"))
@@ -185,29 +187,19 @@ DynamicGifStack::New(const Arguments &args)
         else if (str_eq(*bts, "bgra"))
             buf_type = BUF_BGRA;
         else
-            return VException("First argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("First argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
     }
 
-    DynamicGifStack *gif_stack = new DynamicGifStack(buf_type);
-    gif_stack->Wrap(args.This());
-    return args.This();
-}
-
-Handle<Value>
-DynamicGifStack::Push(const Arguments &args)
-{
-    HandleScope scope;
-
     if (!Buffer::HasInstance(args[0]))
-        return VException("First argument must be Buffer.");
+        VException("First argument must be Buffer.");
     if (!args[1]->IsInt32())
-        return VException("Second argument must be integer x.");
+        VException("Second argument must be integer x.");
     if (!args[2]->IsInt32())
-        return VException("Third argument must be integer y.");
+        VException("Third argument must be integer y.");
     if (!args[3]->IsInt32())
-        return VException("Fourth argument must be integer w.");
+        VException("Fourth argument must be integer w.");
     if (!args[4]->IsInt32())
-        return VException("Fifth argument must be integer h.");
+        VException("Fifth argument must be integer h.");
 
     int x = args[1]->Int32Value();
     int y = args[2]->Int32Value();
@@ -215,39 +207,41 @@ DynamicGifStack::Push(const Arguments &args)
     int h = args[4]->Int32Value();
 
     if (x < 0)
-        return VException("Coordinate x smaller than 0.");
+        VException("Coordinate x smaller than 0.");
     if (y < 0)
-        return VException("Coordinate y smaller than 0.");
+        VException("Coordinate y smaller than 0.");
     if (w < 0)
-        return VException("Width smaller than 0.");
+        VException("Width smaller than 0.");
     if (h < 0)
-        return VException("Height smaller than 0.");
+        VException("Height smaller than 0.");
 
     DynamicGifStack *gif_stack = ObjectWrap::Unwrap<DynamicGifStack>(args.This());
 
     Local<Object> buf_obj = args[0]->ToObject();
-    char *buf_data = BufferData(buf_obj);
-    size_t buf_len = BufferLength(buf_obj);
+    char *buf_data = node::Buffer::Data(buf_obj);
+    size_t buf_len = node::Buffer::Length(buf_obj);
 
-    return scope.Close(gif_stack->Push((unsigned char*)buf_data, buf_len, x, y, w, h));
+    gif_stack->Push((unsigned char*)buf_data, buf_len, x, y, w, h);
 }
 
-Handle<Value>
-DynamicGifStack::Dimensions(const Arguments &args)
+void
+DynamicGifStack::Dimensions(const FunctionCallbackInfo<Value> &args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    EscapableHandleScope scope(isolate);
 
     DynamicGifStack *gif_stack = ObjectWrap::Unwrap<DynamicGifStack>(args.This());
-    return scope.Close(gif_stack->Dimensions());
+    args.GetReturnValue().Set(scope.Escape(gif_stack->Dimensions()));
 }
 
-Handle<Value>
-DynamicGifStack::GifEncodeSync(const Arguments &args)
+void
+DynamicGifStack::GifEncodeSync(const FunctionCallbackInfo<Value> &args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    EscapableHandleScope scope(isolate);
 
     DynamicGifStack *gif_stack = ObjectWrap::Unwrap<DynamicGifStack>(args.This());
-    return scope.Close(gif_stack->GifEncodeSync());
+    args.GetReturnValue().Set(scope.Escape(gif_stack->GifEncodeSync()));
 }
 
 void
@@ -306,7 +300,8 @@ DynamicGifStack::EIO_GifEncode(uv_work_t *req)
 void
 DynamicGifStack::EIO_GifEncodeAfter(uv_work_t *req, int status)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     //ev_unref(EV_DEFAULT_UC);
     
@@ -316,26 +311,25 @@ DynamicGifStack::EIO_GifEncodeAfter(uv_work_t *req, int status)
     Handle<Value> argv[3];
 
     if (enc_req->error) {
-        argv[0] = Undefined();
-        argv[1] = Undefined();
+        argv[0] = Undefined(isolate);
+        argv[1] = Undefined(isolate);
         argv[2] = ErrorException(enc_req->error);
     }
     else {
-        Buffer *buf = Buffer::New(enc_req->gif_len);
-        memcpy(BufferData(buf), enc_req->gif, enc_req->gif_len);
-        argv[0] = buf->handle_;
+        argv[0] = node::Buffer::New(isolate, (const char *)enc_req->gif, enc_req->gif_len);
         argv[1] = gif->Dimensions();
-        argv[2] = Undefined();
+        argv[2] = Undefined(isolate);
     }
 
     TryCatch try_catch; // don't quite see the necessity of this
 
-    enc_req->callback->Call(Context::GetCurrent()->Global(), 3, argv);
+    Local<Function> cb = Local<Function>::New(isolate, enc_req->callback);
+    cb->Call(isolate->GetCurrentContext()->Global(), 3, argv);
 
     if (try_catch.HasCaught())
         FatalException(try_catch);
 
-    enc_req->callback.Dispose();
+    enc_req->callback.Reset();
     free(enc_req->gif);
     free(enc_req->error);
 
@@ -345,25 +339,25 @@ DynamicGifStack::EIO_GifEncodeAfter(uv_work_t *req, int status)
     //return 0;
 }
 
-Handle<Value>
-DynamicGifStack::GifEncodeAsync(const Arguments &args)
+void
+DynamicGifStack::GifEncodeAsync(const FunctionCallbackInfo<Value> &args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() != 1)
-        return VException("One argument required - callback function.");
+        VException("One argument required - callback function.");
 
     if (!args[0]->IsFunction())
-        return VException("First argument must be a function.");
+        VException("First argument must be a function.");
 
-    Local<Function> callback = Local<Function>::Cast(args[0]);
     DynamicGifStack *gif = ObjectWrap::Unwrap<DynamicGifStack>(args.This());
 
     encode_request *enc_req = (encode_request *)malloc(sizeof(*enc_req));
     if (!enc_req)
-        return VException("malloc in DynamicGifStack::GifEncodeAsync failed.");
+        VException("malloc in DynamicGifStack::GifEncodeAsync failed.");
 
-    enc_req->callback = Persistent<Function>::New(callback);
+    enc_req->callback.Reset(isolate, args[0].As<Function>());
     enc_req->gif_obj = gif;
     enc_req->gif = NULL;
     enc_req->gif_len = 0;
@@ -376,7 +370,5 @@ DynamicGifStack::GifEncodeAsync(const Arguments &args)
     uv_queue_work(uv_default_loop(), req, &EIO_GifEncode, &EIO_GifEncodeAfter);
     //ev_ref(EV_DEFAULT_UC);
     gif->Ref();
-
-    return Undefined();
 }
 

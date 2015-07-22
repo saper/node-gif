@@ -2,7 +2,8 @@
 #define DYNAMIC_gif_STACK_H
 
 #include <node.h>
-#include <node_buffer.h>
+#include <node_object_wrap.h>
+#include <uv.h>
 
 #include <utility>
 #include <vector>
@@ -44,19 +45,19 @@ class DynamicGifStack : public node::ObjectWrap {
     void construct_gif_data(unsigned char *data, Point &top);
 
 public:
-    static void Initialize(v8::Handle<v8::Object> target);
+    static void Initialize(v8::Isolate* isolate, v8::Handle<v8::Object> target);
     DynamicGifStack(buffer_type bbuf_type);
     ~DynamicGifStack();
 
-    v8::Handle<v8::Value> Push(unsigned char *buf_data, size_t buf_len, int x, int y, int w, int h);
-    v8::Handle<v8::Value> Dimensions();
-    v8::Handle<v8::Value> GifEncodeSync();
+    void Push(unsigned char *buf_data, size_t buf_len, int x, int y, int w, int h);
+    v8::Local<v8::Value> Dimensions(void);
+    v8::Local<v8::Value> GifEncodeSync(void);
 
-    static v8::Handle<v8::Value> New(const v8::Arguments &args);
-    static v8::Handle<v8::Value> Push(const v8::Arguments &args);
-    static v8::Handle<v8::Value> Dimensions(const v8::Arguments &args);
-    static v8::Handle<v8::Value> GifEncodeSync(const v8::Arguments &args);
-    static v8::Handle<v8::Value> GifEncodeAsync(const v8::Arguments &args);
+    static void New(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void Push(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void Dimensions(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void GifEncodeSync(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void GifEncodeAsync(const v8::FunctionCallbackInfo<v8::Value> &args);
 };
 
 #endif
