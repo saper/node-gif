@@ -250,9 +250,9 @@ stream_writer(GifFileType *gif_file, const GifByteType *data, int size)
     Local<Function> onData;
 
     AnimatedGif *gif = (AnimatedGif *)gif_file->UserData;
-    onData = Local<Function>::Cast(gif->ondata);
+    onData = Local<Function>::New(isolate, gif->ondata);
     Handle<Value> argv[1] = { node::Buffer::New(isolate, (const char *)data, size) };
-    onData->Call(isolate, Context::GetCurrent()->Global(), 1, argv);
+    onData->Call(isolate->GetCurrentContext()->Global(), 1, argv);
     return size;
 }
 
