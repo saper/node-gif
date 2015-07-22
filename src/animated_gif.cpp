@@ -3,7 +3,6 @@
 #include "common.h"
 #include "gif_encoder.h"
 #include "animated_gif.h"
-#include "buffer_compat.h"
 
 #include <iostream>
 
@@ -177,7 +176,7 @@ AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
         VException("Pushed fragment exceeds AnimatedGif's height.");
 
     try {
-        char *buf_data = BufferData(args[0]->ToObject());
+        char *buf_data = node::Buffer::Data(args[0]->ToObject());
 
         gif->Push((unsigned char*)buf_data, x, y, w, h);
     }

@@ -5,7 +5,6 @@
 #include "utils.h"
 #include "gif_encoder.h"
 #include "async_animated_gif.h"
-#include "buffer_compat.h"
 
 #include "loki/ScopeGuard.h"
 
@@ -230,7 +229,7 @@ AsyncAnimatedGif::Push(const FunctionCallbackInfo<v8::Value> &args)
         VException("Pushed fragment exceeds AsyncAnimatedGif's height.");
 
     try {
-        char *buf_data = BufferData(args[0]->ToObject());
+        char *buf_data = node::Buffer::Data(args[0]->ToObject());
         gif->Push((unsigned char*)buf_data, x, y, w, h);
     }
     catch (const char *err) {
