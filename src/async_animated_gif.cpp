@@ -13,18 +13,18 @@ using namespace v8;
 using namespace node;
 
 void
-AsyncAnimatedGif::Initialize(Handle<Object> target)
+AsyncAnimatedGif::Initialize(Isolate* isolate, Handle<Object> target)
 {
-    HandleScope scope;
+    HandleScope scope(isolate);
 
-    Local<FunctionTemplate> t = FunctionTemplate::New(New);
+    Local<FunctionTemplate> t = FunctionTemplate::New(isolate, New);
     t->InstanceTemplate()->SetInternalFieldCount(1);
     NODE_SET_PROTOTYPE_METHOD(t, "push", Push);
     NODE_SET_PROTOTYPE_METHOD(t, "endPush", EndPush);
     NODE_SET_PROTOTYPE_METHOD(t, "encode", Encode);
     NODE_SET_PROTOTYPE_METHOD(t, "setOutputFile", SetOutputFile);
     NODE_SET_PROTOTYPE_METHOD(t, "setTmpDir", SetTmpDir);
-    target->Set(String::NewSymbol("AsyncAnimatedGif"), t->GetFunction());
+    target->Set(String::NewFromUtf8(isolate, "AsyncAnimatedGif"), t->GetFunction());
 }
 
 AsyncAnimatedGif::AsyncAnimatedGif(int wwidth, int hheight, buffer_type bbuf_type) :
@@ -89,10 +89,11 @@ AsyncAnimatedGif::EIO_PushAfter(uv_work_t *req, int status)
 
 }
 
-Handle<Value>
+void
 AsyncAnimatedGif::Push(unsigned char *data_buf, int x, int y, int w, int h)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (tmp_dir.empty())
         throw "Tmp dir is not set. Use .setTmpDir to set it before pushing.";
@@ -127,8 +128,6 @@ AsyncAnimatedGif::Push(unsigned char *data_buf, int x, int y, int w, int h)
     //eio_custom(EIO_Push, EIO_PRI_DEFAULT, EIO_PushAfter, push_req);
     uv_queue_work(uv_default_loop(), req, &EIO_Push, &EIO_PushAfter);
     //ev_ref(EV_DEFAULT_UC);
-
-    return Undefined();
 }
 
 void
@@ -138,28 +137,29 @@ AsyncAnimatedGif::EndPush()
     fragment_id = 0;
 }
 
-Handle<Value>
-AsyncAnimatedGif::New(const Arguments &args)
+void
+AsyncAnimatedGif::New(const FunctionCallbackInfo<v8::Value> &args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() < 2)
-        return VException("At least two arguments required - width, height, [and input buffer type]");
+        VException("At least two arguments required - width, height, [and input buffer type]");
     if (!args[0]->IsInt32())
-        return VException("First argument must be integer width.");
+        VException("First argument must be integer width.");
     if (!args[1]->IsInt32())
-        return VException("Second argument must be integer height.");
+        VException("Second argument must be integer height.");
 
     buffer_type buf_type = BUF_RGB;
     if (args.Length() == 3) {
         if (!args[2]->IsString())
-            return VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
 
-        String::AsciiValue bts(args[2]->ToString());
+        String::Utf8Value bts(args[2]->ToString());
         if (!(str_eq(*bts, "rgb") || str_eq(*bts, "bgr") ||
             str_eq(*bts, "rgba") || str_eq(*bts, "bgra")))
         {
-            return VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
         }
 
         if (str_eq(*bts, "rgb"))
@@ -171,37 +171,38 @@ AsyncAnimatedGif::New(const Arguments &args)
         else if (str_eq(*bts, "bgra"))
             buf_type = BUF_BGRA;
         else
-            return VException("Third argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("Third argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
     }
 
     int w = args[0]->Int32Value();
     int h = args[1]->Int32Value();
 
     if (w < 0)
-        return VException("Width smaller than 0.");
+        VException("Width smaller than 0.");
     if (h < 0)
-        return VException("Height smaller than 0.");
+        VException("Height smaller than 0.");
 
     AsyncAnimatedGif *gif = new AsyncAnimatedGif(w, h, buf_type);
     gif->Wrap(args.This());
-    return args.This();
+    args.GetReturnValue().Set(args.This());
 }
 
-Handle<Value>
-AsyncAnimatedGif::Push(const Arguments &args)
+void
+AsyncAnimatedGif::Push(const FunctionCallbackInfo<v8::Value> &args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (!Buffer::HasInstance(args[0]))
-        return VException("First argument must be Buffer.");
+        VException("First argument must be Buffer.");
     if (!args[1]->IsInt32())
-        return VException("Second argument must be integer x.");
+        VException("Second argument must be integer x.");
     if (!args[2]->IsInt32())
-        return VException("Third argument must be integer y.");
+        VException("Third argument must be integer y.");
     if (!args[3]->IsInt32())
-        return VException("Fourth argument must be integer w.");
+        VException("Fourth argument must be integer w.");
     if (!args[4]->IsInt32())
-        return VException("Fifth argument must be integer h.");
+        VException("Fifth argument must be integer h.");
 
     AsyncAnimatedGif *gif = ObjectWrap::Unwrap<AsyncAnimatedGif>(args.This());
     //    Buffer *data_buf = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
@@ -212,42 +213,39 @@ AsyncAnimatedGif::Push(const Arguments &args)
     int h = args[4]->Int32Value();
 
     if (x < 0)
-        return VException("Coordinate x smaller than 0.");
+        VException("Coordinate x smaller than 0.");
     if (y < 0)
-        return VException("Coordinate y smaller than 0.");
+        VException("Coordinate y smaller than 0.");
     if (w < 0)
-        return VException("Width smaller than 0.");
+        VException("Width smaller than 0.");
     if (h < 0)
-        return VException("Height smaller than 0.");
+        VException("Height smaller than 0.");
     if (x >= gif->width)
-        return VException("Coordinate x exceeds AsyncAnimatedGif's dimensions.");
+        VException("Coordinate x exceeds AsyncAnimatedGif's dimensions.");
     if (y >= gif->height)
-        return VException("Coordinate y exceeds AsyncAnimatedGif's dimensions.");
+        VException("Coordinate y exceeds AsyncAnimatedGif's dimensions.");
     if (x+w > gif->width)
-        return VException("Pushed fragment exceeds AsyncAnimatedGif's width.");
+        VException("Pushed fragment exceeds AsyncAnimatedGif's width.");
     if (y+h > gif->height)
-        return VException("Pushed fragment exceeds AsyncAnimatedGif's height.");
+        VException("Pushed fragment exceeds AsyncAnimatedGif's height.");
 
     try {
         char *buf_data = BufferData(args[0]->ToObject());
         gif->Push((unsigned char*)buf_data, x, y, w, h);
     }
     catch (const char *err) {
-        return VException(err);
+        VException(err);
     }
-
-    return Undefined();
 }
 
-Handle<Value>
-AsyncAnimatedGif::EndPush(const Arguments &args)
+void
+AsyncAnimatedGif::EndPush(const FunctionCallbackInfo<v8::Value> &args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     AsyncAnimatedGif *gif = ObjectWrap::Unwrap<AsyncAnimatedGif>(args.This());
     gif->EndPush();
-
-    return Undefined();
 }
 
 int
@@ -387,7 +385,8 @@ AsyncAnimatedGif::EIO_Encode(uv_work_t *req)
 void
 AsyncAnimatedGif::EIO_EncodeAfter(uv_work_t *req, int status)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     //ev_unref(EV_DEFAULT_UC);
     async_encode_request *enc_req = (async_encode_request *)req->data;
@@ -395,22 +394,23 @@ AsyncAnimatedGif::EIO_EncodeAfter(uv_work_t *req, int status)
     Handle<Value> argv[2];
 
     if (enc_req->error) {
-        argv[0] = False();
+        argv[0] = False(isolate);
         argv[1] = ErrorException(enc_req->error);
     }
     else {
-        argv[0] = True();
-        argv[1] = Undefined();
+        argv[0] = True(isolate);
+        argv[1] = Undefined(isolate);
     }
 
     TryCatch try_catch; // don't quite see the necessity of this
 
-    enc_req->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+    Local<Function> cb = Local<Function>::New(isolate, enc_req->callback);
+    cb->Call(isolate->GetCurrentContext()->Global(), 2, argv);
 
     if (try_catch.HasCaught())
         FatalException(try_catch);
 
-    enc_req->callback.Dispose();
+    enc_req->callback.Reset();
 
     enc_req->gif_obj->Unref();
     free(enc_req);
@@ -418,16 +418,17 @@ AsyncAnimatedGif::EIO_EncodeAfter(uv_work_t *req, int status)
     //return 0;
 }
 
-Handle<Value>
-AsyncAnimatedGif::Encode(const Arguments &args)
+void
+AsyncAnimatedGif::Encode(const FunctionCallbackInfo<v8::Value> &args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() != 1)
-        return VException("One argument required - callback function.");
+        VException("One argument required - callback function.");
 
     if (!args[0]->IsFunction())
-        return VException("First argument must be a function.");
+        VException("First argument must be a function.");
 
     Local<Function> callback = Local<Function>::Cast(args[0]);
     AsyncAnimatedGif *gif = ObjectWrap::Unwrap<AsyncAnimatedGif>(args.This());
@@ -438,9 +439,9 @@ AsyncAnimatedGif::Encode(const Arguments &args)
 
 
     if (!enc_req)
-        return VException("malloc in AsyncAnimatedGif::Encode failed.");
+        VException("malloc in AsyncAnimatedGif::Encode failed.");
 
-    enc_req->callback = Persistent<Function>::New(callback);
+    enc_req->callback.Reset(isolate, callback);
     enc_req->gif_obj = gif;
     enc_req->error = NULL;
 
@@ -452,45 +453,41 @@ AsyncAnimatedGif::Encode(const Arguments &args)
     //ev_ref(EV_DEFAULT_UC);
     
     gif->Ref();
-
-    return Undefined();
 }
 
-Handle<Value>
-AsyncAnimatedGif::SetOutputFile(const Arguments &args)
+void
+AsyncAnimatedGif::SetOutputFile(const FunctionCallbackInfo<v8::Value> &args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() != 1)
-        return VException("One argument required - path to output file.");
+        VException("One argument required - path to output file.");
 
     if (!args[0]->IsString())
-        return VException("First argument must be string.");
+        VException("First argument must be string.");
 
-    String::AsciiValue file_name(args[0]->ToString());
+    String::Utf8Value file_name(args[0]->ToString());
 
     AsyncAnimatedGif *gif = ObjectWrap::Unwrap<AsyncAnimatedGif>(args.This());
     gif->output_file = *file_name;
-
-    return Undefined();
 }
 
-Handle<Value>
-AsyncAnimatedGif::SetTmpDir(const Arguments &args)
+void
+AsyncAnimatedGif::SetTmpDir(const FunctionCallbackInfo<v8::Value> &args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() != 1)
-        return VException("One argument required - path to tmp dir.");
+        VException("One argument required - path to tmp dir.");
 
     if (!args[0]->IsString())
-        return VException("First argument must be string.");
+        VException("First argument must be string.");
 
-    String::AsciiValue tmp_dir(args[0]->ToString());
+    String::Utf8Value tmp_dir(args[0]->ToString());
 
     AsyncAnimatedGif *gif = ObjectWrap::Unwrap<AsyncAnimatedGif>(args.This());
     gif->tmp_dir = *tmp_dir;
-
-    return Undefined();
 }
 
