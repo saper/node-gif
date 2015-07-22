@@ -19,19 +19,19 @@ public:
 
     v8::Persistent<v8::Function> ondata;
 
-    static void Initialize(v8::Handle<v8::Object> target);
+    static void Initialize(v8::Isolate *isolate, v8::Handle<v8::Object> target);
 
     AnimatedGif(int wwidth, int hheight, buffer_type bbuf_type);
-    v8::Handle<v8::Value> Push(unsigned char *data_buf, int x, int y, int w, int h);
+    void Push(unsigned char *data_buf, int x, int y, int w, int h);
     void EndPush();
 
-    static v8::Handle<v8::Value> New(const v8::FunctionCallbackInfo<v8::Value> &args);
-    static v8::Handle<v8::Value> Push(const v8::FunctionCallbackInfo<v8::Value> &args);
-    static v8::Handle<v8::Value> EndPush(const v8::FunctionCallbackInfo<v8::Value> &args);
-    static v8::Handle<v8::Value> End(const v8::FunctionCallbackInfo<v8::Value> &args);
-    static v8::Handle<v8::Value> GetGif(const v8::FunctionCallbackInfo<v8::Value> &args);
-    static v8::Handle<v8::Value> SetOutputFile(const v8::FunctionCallbackInfo<v8::Value> &args);
-    static v8::Handle<v8::Value> SetOutputCallback(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void New(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void Push(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void EndPush(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void End(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void GetGif(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void SetOutputFile(const v8::FunctionCallbackInfo<v8::Value> &args);
+    static void SetOutputCallback(const v8::FunctionCallbackInfo<v8::Value> &args);
 };
 
 #endif

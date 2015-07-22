@@ -7,14 +7,16 @@ using namespace v8;
 Handle<Value>
 ErrorException(const char *msg)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
     return Exception::Error(String::New(msg));
 }
 
-Handle<Value>
+void
 VException(const char *msg) {
-    HandleScope scope;
-    return ThrowException(ErrorException(msg));
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    return isolate->ThrowException(ErrorException(msg));
 }
 
 bool str_eq(const char *s1, const char *s2)

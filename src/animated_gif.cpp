@@ -11,11 +11,11 @@ using namespace v8;
 using namespace node;
 
 void
-AnimatedGif::Initialize(Handle<Object> target)
+AnimatedGif::Initialize(Isolate *isolate, Handle<Object> target)
 {
-    HandleScope scope;
+    HandleScope scope(isolate);
 
-    Local<FunctionTemplate> t = FunctionTemplate::New(New);
+    Local<FunctionTemplate> t = FunctionTemplate::New(isolate, New);
     t->InstanceTemplate()->SetInternalFieldCount(1);
     NODE_SET_PROTOTYPE_METHOD(t, "push", Push);
     NODE_SET_PROTOTYPE_METHOD(t, "endPush", EndPush);
@@ -23,7 +23,7 @@ AnimatedGif::Initialize(Handle<Object> target)
     NODE_SET_PROTOTYPE_METHOD(t, "end", End);
     NODE_SET_PROTOTYPE_METHOD(t, "setOutputFile", SetOutputFile);
     NODE_SET_PROTOTYPE_METHOD(t, "setOutputCallback", SetOutputCallback);
-    target->Set(String::NewSymbol("AnimatedGif"), t->GetFunction());
+    target->Set(String::NewFromUtf8(isolate, "AnimatedGif"), t->GetFunction());
 }
 
 AnimatedGif::AnimatedGif(int wwidth, int hheight, buffer_type bbuf_type) :
@@ -34,7 +34,7 @@ AnimatedGif::AnimatedGif(int wwidth, int hheight, buffer_type bbuf_type) :
     gif_encoder.set_transparency_color(transparency_color);
 }
 
-Handle<Value>
+void
 AnimatedGif::Push(unsigned char *data_buf, int x, int y, int w, int h)
 {
     if (!data) {
@@ -86,28 +86,29 @@ AnimatedGif::EndPush()
     data = NULL;
 }
 
-Handle<Value>
+void
 AnimatedGif::New(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate* isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() < 2)
-        return VException("At least two arguments required - width, height, [and input buffer type]");
+        VException("At least two arguments required - width, height, [and input buffer type]");
     if (!args[0]->IsInt32())
-        return VException("First argument must be integer width.");
+        VException("First argument must be integer width.");
     if (!args[1]->IsInt32())
-        return VException("Second argument must be integer height.");
+        VException("Second argument must be integer height.");
 
     buffer_type buf_type = BUF_RGB;
     if (args.Length() == 3) {
         if (!args[2]->IsString())
-            return VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
 
         String::AsciiValue bts(args[2]->ToString());
         if (!(str_eq(*bts, "rgb") || str_eq(*bts, "bgr") ||
             str_eq(*bts, "rgba") || str_eq(*bts, "bgra")))
         {
-            return VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
         }
 
         if (str_eq(*bts, "rgb"))
@@ -119,37 +120,38 @@ AnimatedGif::New(const FunctionCallbackInfo<Value>& args)
         else if (str_eq(*bts, "bgra"))
             buf_type = BUF_BGRA;
         else
-            return VException("Third argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
+            VException("Third argument wasn't 'rgb', 'bgr', 'rgba' or 'bgra'.");
     }
 
     int w = args[0]->Int32Value();
     int h = args[1]->Int32Value();
 
     if (w < 0)
-        return VException("Width smaller than 0.");
+        VException("Width smaller than 0.");
     if (h < 0)
-        return VException("Height smaller than 0.");
+        VException("Height smaller than 0.");
 
     AnimatedGif *gif = new AnimatedGif(w, h, buf_type);
     gif->Wrap(args.This());
-    return args.This();
+    args.GetReturnValue().Set(args.This());
 }
 
-Handle<Value>
+void
 AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (!Buffer::HasInstance(args[0]))
-        return VException("First argument must be Buffer.");
+        VException("First argument must be Buffer.");
     if (!args[1]->IsInt32())
-        return VException("Second argument must be integer x.");
+        VException("Second argument must be integer x.");
     if (!args[2]->IsInt32())
-        return VException("Third argument must be integer y.");
+        VException("Third argument must be integer y.");
     if (!args[3]->IsInt32())
-        return VException("Fourth argument must be integer w.");
+        VException("Fourth argument must be integer w.");
     if (!args[4]->IsInt32())
-        return VException("Fifth argument must be integer h.");
+        VException("Fifth argument must be integer h.");
 
     AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
     int x = args[1]->Int32Value();
@@ -158,21 +160,21 @@ AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
     int h = args[4]->Int32Value();
 
     if (x < 0)
-        return VException("Coordinate x smaller than 0.");
+        VException("Coordinate x smaller than 0.");
     if (y < 0)
-        return VException("Coordinate y smaller than 0.");
+        VException("Coordinate y smaller than 0.");
     if (w < 0)
-        return VException("Width smaller than 0.");
+        VException("Width smaller than 0.");
     if (h < 0)
-        return VException("Height smaller than 0.");
+        VException("Height smaller than 0.");
     if (x >= gif->width)
-        return VException("Coordinate x exceeds AnimatedGif's dimensions.");
+        VException("Coordinate x exceeds AnimatedGif's dimensions.");
     if (y >= gif->height)
-        return VException("Coordinate y exceeds AnimatedGif's dimensions.");
+        VException("Coordinate y exceeds AnimatedGif's dimensions.");
     if (x+w > gif->width)
-        return VException("Pushed fragment exceeds AnimatedGif's width.");
+        VException("Pushed fragment exceeds AnimatedGif's width.");
     if (y+h > gif->height)
-        return VException("Pushed fragment exceeds AnimatedGif's height.");
+        VException("Pushed fragment exceeds AnimatedGif's height.");
 
     try {
         char *buf_data = BufferData(args[0]->ToObject());
@@ -180,10 +182,8 @@ AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
         gif->Push((unsigned char*)buf_data, x, y, w, h);
     }
     catch (const char *err) {
-        return VException(err);
+        VException(err);
     }
-
-    return Undefined();
 }
 
 Handle<Value>
@@ -196,7 +196,7 @@ AnimatedGif::EndPush(const FunctionCallbackInfo<Value>& args)
         gif->EndPush();
     }
     catch (const char *err) {
-        return VException(err);
+        VException(err);
     }
 
     return Undefined();
@@ -232,10 +232,10 @@ AnimatedGif::SetOutputFile(const FunctionCallbackInfo<Value>& args)
     HandleScope scope;
 
     if (args.Length() != 1)
-        return VException("One argument required - path to output file.");
+        VException("One argument required - path to output file.");
 
     if (!args[0]->IsString())
-        return VException("First argument must be string.");
+        VException("First argument must be string.");
 
     String::AsciiValue file_name(args[0]->ToString());
 
@@ -269,10 +269,10 @@ AnimatedGif::SetOutputCallback(const FunctionCallbackInfo<Value>& args)
     HandleScope scope;
 
     if (args.Length() != 1)
-        return VException("One argument required - path to output file.");
+        VException("One argument required - path to output file.");
 
     if (!args[0]->IsFunction())
-        return VException("First argument must be string.");
+        VException("First argument must be string.");
 
     Local<Function> callback = Local<Function>::Cast(args[0]);
     AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
