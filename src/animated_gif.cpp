@@ -104,7 +104,7 @@ AnimatedGif::New(const FunctionCallbackInfo<Value>& args)
         if (!args[2]->IsString())
             VException("Third argument must be 'rgb', 'bgr', 'rgba' or 'bgra'.");
 
-        String::AsciiValue bts(args[2]->ToString());
+        String::Utf8Value bts(args[2]->ToString());
         if (!(str_eq(*bts, "rgb") || str_eq(*bts, "bgr") ||
             str_eq(*bts, "rgba") || str_eq(*bts, "bgra")))
         {
@@ -139,7 +139,7 @@ AnimatedGif::New(const FunctionCallbackInfo<Value>& args)
 void
 AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
 {
-    Isolate isolate = Isolate::GetCurrent();
+    Isolate *isolate = Isolate::GetCurrent();
     HandleScope scope(isolate);
 
     if (!Buffer::HasInstance(args[0]))
@@ -186,10 +186,11 @@ AnimatedGif::Push(const FunctionCallbackInfo<Value>& args)
     }
 }
 
-Handle<Value>
+void
 AnimatedGif::EndPush(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     try {
         AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
@@ -198,38 +199,36 @@ AnimatedGif::EndPush(const FunctionCallbackInfo<Value>& args)
     catch (const char *err) {
         VException(err);
     }
-
-    return Undefined();
 }
 
-Handle<Value>
+void
 AnimatedGif::GetGif(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    EscapableHandleScope scope(isolate);
 
     AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
     gif->gif_encoder.finish();
     int gif_len = gif->gif_encoder.get_gif_len();
-    Buffer *retbuf = Buffer::New(gif_len);
-    memcpy(BufferData(retbuf), gif->gif_encoder.get_gif(), gif_len);
-    return scope.Close(retbuf->handle_);
+
+    args.GetReturnValue().Set(scope.Escape(node::Buffer::New(isolate, (const char *)gif->gif_encoder.get_gif(), gif_len)));
 }
 
-Handle<Value>
+void
 AnimatedGif::End(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
     gif->gif_encoder.finish();
-
-    return Undefined();
 }
 
-Handle<Value>
+void
 AnimatedGif::SetOutputFile(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() != 1)
         VException("One argument required - path to output file.");
@@ -237,46 +236,39 @@ AnimatedGif::SetOutputFile(const FunctionCallbackInfo<Value>& args)
     if (!args[0]->IsString())
         VException("First argument must be string.");
 
-    String::AsciiValue file_name(args[0]->ToString());
+    String::Utf8Value file_name(args[0]->ToString());
 
     AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
     gif->gif_encoder.set_output_file(*file_name);
-
-    return Undefined();
 }
 
 int
 stream_writer(GifFileType *gif_file, const GifByteType *data, int size)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
+    Local<Function> onData;
 
     AnimatedGif *gif = (AnimatedGif *)gif_file->UserData;
-    Buffer *retbuf = Buffer::New(size);
-    memcpy(BufferData(retbuf), data, size);
-    Handle<Value> argv[1] = {
-      retbuf->handle_
-    };
-    //Local<Value> callback_v = gif->Wrap()->Get(String::New("ondata"));
-    //assert(callback_v->IsFunction());
-    //Local<Function> callback = Local<Function>::Cast(callback_v);
-    gif->ondata->Call(Context::GetCurrent()->Global(), 1, argv);
+    onData = Local<Function>::Cast(gif->ondata);
+    Handle<Value> argv[1] = { node::Buffer::New(isolate, (const char *)data, size) };
+    onData->Call(isolate, Context::GetCurrent()->Global(), 1, argv);
     return size;
 }
 
-Handle<Value>
+void
 AnimatedGif::SetOutputCallback(const FunctionCallbackInfo<Value>& args)
 {
-    HandleScope scope;
+    Isolate *isolate = Isolate::GetCurrent();
+    HandleScope scope(isolate);
 
     if (args.Length() != 1)
         VException("One argument required - path to output file.");
 
     if (!args[0]->IsFunction())
-        VException("First argument must be string.");
+        VException("First argument must be a function name.");
 
-    Local<Function> callback = Local<Function>::Cast(args[0]);
     AnimatedGif *gif = ObjectWrap::Unwrap<AnimatedGif>(args.This());
-    gif->ondata = Persistent<Function>::New(callback);
+    gif->ondata.Reset(isolate, args[0].As<Function>());
     gif->gif_encoder.set_output_func(stream_writer, (void*)gif);
-    return Undefined();
 }
