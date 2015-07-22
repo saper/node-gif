@@ -3,6 +3,7 @@
 
 #include <node.h>
 #include <node_object_wrap.h>
+#include <node_buffer.h>
 #include <uv.h>
 
 #include "common.h"
@@ -10,6 +11,7 @@
 class Gif : public node::ObjectWrap {
     int width, height;
     buffer_type buf_type;
+    v8::Persistent<v8::Object> framebuffer;
     Color transparency_color;
 
     static void EIO_GifEncode(uv_work_t *req);

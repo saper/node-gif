@@ -31,9 +31,7 @@ Gif::GifEncodeSync()
     Isolate *isolate = Isolate::GetCurrent();
     EscapableHandleScope scope(isolate);
 
-    Local<Value> buf_val = handle_->GetHiddenValue(String::New("buffer"));
-
-    char *buf_data = node::Buffer::Data(buf_val->ToObject());
+    char *buf_data = node::Buffer::Data(Local<Object>::New(isolate, framebuffer));
 
     try {
         GifEncoder encoder((unsigned char*)buf_data, width, height, buf_type);
@@ -108,7 +106,10 @@ Gif::New(const FunctionCallbackInfo<Value> &args)
     gif->Wrap(args.This());
 
     // Save buffer.
-    gif->handle_->SetHiddenValue(String::New("buffer"), args[0]);
+    gif->framebuffer.Reset(isolate,
+		node::Buffer::New(
+			node::Buffer::Data(args[0].As<v8::Object>()),
+			node::Buffer::Length(args[0].As<v8::Object>())));
 
     args.GetReturnValue().Set(args.This());
 }
@@ -240,9 +241,8 @@ Gif::GifEncodeAsync(const FunctionCallbackInfo<Value> &args)
 
     // We need to pull out the buffer data before
     // we go to the thread pool.
-    Local<Value> buf_val = gif->handle_->GetHiddenValue(String::New("buffer"));
 
-    enc_req->buf_data = node::Buffer::Data(buf_val->ToObject());
+    enc_req->buf_data = node::Buffer::Data(Local<Object>::New(isolate, gif->framebuffer));
 
     uv_work_t *req = new uv_work_t;
 
