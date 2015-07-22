@@ -11,7 +11,7 @@ using namespace v8;
 extern "C" void
 init(Handle<Object> target)
 {
-    Isolate isolate = Isolate::GetCurrent();
+    Isolate *isolate = v8::Isolate::GetCurrent();
     HandleScope scope(isolate);
     Gif::Initialize(isolate, target);
     //FixedGifStack::Initialize(isolate, target);
