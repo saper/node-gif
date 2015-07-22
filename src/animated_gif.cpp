@@ -4,6 +4,8 @@
 #include "gif_encoder.h"
 #include "animated_gif.h"
 
+#include <node_buffer.h>
+
 #include <iostream>
 
 using namespace v8;
