@@ -9,6 +9,8 @@
 #include "palette.h"
 #include "quantize.h"
 
+#define FALSE 0
+
 static int
 find_color_index(ColorMapObject *color_map, int color_map_size, Color &color)
 {
@@ -226,7 +228,7 @@ GifEncoder::get_gif() const
     return gif.gif;
 }
 
-const int
+int
 GifEncoder::get_gif_len() const
 {
     return gif.size;
@@ -362,7 +364,7 @@ AnimatedGifEncoder::get_gif() const
     return gif.gif;
 }
 
-const int
+int
 AnimatedGifEncoder::get_gif_len() const
 {
     return gif.size;
